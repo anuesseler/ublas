@@ -229,32 +229,29 @@ auto prod(tensor<V,F,A1> const& a, tensor<V,F,A2> const& b,
 	std::iota(phia1.begin(), phia1.end(), 1ul);
 	std::iota(phib1.begin(), phib1.end(), 1ul);
 
-	std::vector<std::size_t> nc( std::max ( r+s , size_type(2) ), size_type(1) );
-
 	for(auto i = 0ul; i < phia.size(); ++i)
 		* std::remove(phia1.begin(), phia1.end(), phia.at(i)) = phia.at(i);
 
-	//phia1.erase( std::remove(phia1.begin(), phia1.end(), phia.at(i)),  phia1.end() )  ;
 
+	std::vector<std::size_t> nc( std::max ( r+s , size_type(2) ), size_type(1) );
+
+	// copy r non-contracted extents from a to c
 	assert(phia1.size() == pa);
-
 	for(auto i = 0ul; i < r; ++i)
 		nc[ i ] = na[ phia1[ i  ] - 1  ];
 
 	for(auto i = 0ul; i < phib.size(); ++i)
 		* std::remove(phib1.begin(), phib1.end(), phib.at(i))  = phib.at(i) ;
-	//phib1.erase( std::remove(phib1.begin(), phib1.end(), phia.at(i)), phib1.end() )  ;
 
+	// copy s non-contracted extents from b to c
 	assert(phib1.size() == pb);
-
 	for(auto i = 0ul; i < s; ++i)
 		nc[ r + i ] = nb[ phib1[ i  ] - 1  ];
-
-	//	std::copy( phib.begin(), phib.end(), phib1.end()  );
 
 	assert(  phia1.size() == pa  );
 	assert(  phib1.size() == pb  );
 
+	// initialize empty c tensor
 	auto c = tensor_type(extents_type(nc), value_type{});
 
 	ttt(pa, pb, q,
@@ -280,7 +277,7 @@ auto prod(tensor<V,F,A1> const& a, tensor<V,F,A2> const& b,
  *
  * na[phi[x]] = nb[phi[x]] for 1 <= x <= q
  *
- * @param[in]	 phi one-based permutation tuple of length q for bot input tensors
+ * @param[in]	 phi one-based permutation tuple of length q for both input tensors
  * @param[in]  a  left-hand side tensor with order r+q
  * @param[in]  b  right-hand side tensor with order s+q
  * @result     tensor with order r+s

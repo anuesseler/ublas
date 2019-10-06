@@ -22,7 +22,8 @@ namespace detail {
 namespace recursive {
 
 
-/** @brief Computes the tensor-times-tensor product for q contraction modes
+/** @brief Computes the tensor-times-tensor product for q contraction modes with
+ * permutation
  *
  * Implements C[i1,...,ir,j1,...,js] = sum( A[i1,...,ir+q] * B[j1,...,js+q]  )
  *
@@ -120,28 +121,40 @@ void ttt(SizeType const k,
          PointerIn1 a, SizeType const*const na, SizeType const*const wa,
          PointerIn2 b, SizeType const*const nb, SizeType const*const wb)
 {
-	if(k < r)
+	if(k < r) // first non-contracted part
 	{
-		assert(nc[k] == na[k]);
+		assert(nc[k] == na[k]); // check equality of extents c and a
 		for(size_t ic = 0u; ic < nc[k]; a += wa[k], c += wc[k], ++ic)
+			// iterate over k-th dimension (0 <= k < r)
+			// shift pointer to a by stride of k-th dimension
+			// shift pointer to c by stride of k-th dimension
 			ttt(k+1, r, s, q,  c, nc, wc,   a, na, wa,   b, nb, wb);
 	}
-	else if(k < r+s)
+	else if(k < r+s) // second non-contracted part
 	{
-		assert(nc[k] == nb[k-r]);
+		assert(nc[k] == nb[k-r]); // check equality of extents c and b
 		for(size_t ic = 0u; ic < nc[k]; b += wb[k-r], c += wc[k], ++ic)
+			// iterate over k-th dimension (r <= k < r+s)
+			// shift pointer to b by stride of k-th dimension
+			// shift pointer to c by stride of k-th dimension
 			ttt(k+1, r, s, q,  c, nc, wc,   a, na, wa,   b, nb, wb);
 	}
-	else if(k < r+s+q-1)
+	else if(k < r+s+q-1) // contracted part
 	{
-		assert(na[k-s] == nb[k-r]);
+		assert(na[k-s] == nb[k-r]); // check equality of extents a and b
 		for(size_t ia = 0u; ia < na[k-s]; a += wa[k-s], b += wb[k-r], ++ia)
+			// iterate over (k-s)-th dimension (r+s <= k < r+s+q-1)
+			// shift pointer to a by stride of (k-s)-th dimension
+			// shift pointer to b by stride of (k-r)-th dimension
 			ttt(k+1, r, s, q,  c, nc, wc,   a, na, wa,   b, nb, wb);
 	}
 	else
 	{
-		assert(na[k-s] == nb[k-r]);
+		assert(na[k-s] == nb[k-r]); // check equality of extents a and b
 		for(size_t ia = 0u; ia < na[k-s]; a += wa[k-s], b += wb[k-r], ++ia)
+			// iterate over (k-s)-th dimension (r+s+q-1 == k)
+			// shift pointer to a by stride of (k-s)-th dimension
+			// shift pointer to b by stride of (k-r)-th dimension
 			*c += *a * *b;
 	}
 }

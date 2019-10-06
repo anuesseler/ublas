@@ -318,7 +318,10 @@ public:
 		return _base.end();
 	}
 
-	base_type const& base() const { return _base; }
+	base_type const& base() const
+	{
+		return _base;
+	}
 
 private:
 

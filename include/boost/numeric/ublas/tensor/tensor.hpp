@@ -620,6 +620,170 @@ public:
 	}
 
 
+	BOOST_UBLAS_INLINE
+	void reshape_dims(const std::vector<size_t> &newdims)
+	{
+
+		//-- try to reshape without copying data -------------------------------
+		std::vector<size_t> newstrides(newdims.size());
+		size_t is_f_order = 0;
+		size_t err = _attempt_nocopy_reshape(newdims, newstrides, is_f_order);
+
+		if (err)
+		{
+			//-- reshape by copying data ---------------------------------------
+			std::cout << "tensor has to be copied!" << std::endl;			
+		}
+		else
+		{
+			this->extents_ = extents_type(newdims);
+			this->strides_ = strides_type(newstrides);
+		}
+	}
+
+
+	/** @brief Tries to reshape tensor without copying the data array
+	 */
+	BOOST_UBLAS_INLINE
+	size_t _attempt_nocopy_reshape (const std::vector<size_t> &newdims, 
+		std::vector<size_t> &newstrides, size_t is_f_order)
+	{
+		size_t oldnd;
+		size_t newnd = newdims.size();
+
+		// TODO: 10 should be replaced by the maximal allowed rank
+		std::vector<size_t> olddims(10);
+		std::vector<size_t> oldstrides(10);
+
+		size_t last_stride;
+		size_t oi, oj, ok, ni, nj, nk;
+
+		//-- Remove axes with dimension 1 from old array -----------------------
+		oldnd = 0;
+		for (oi = 0; oi < this->rank(); ++oi)
+		{
+			if (this->extents()[oi] != 1)
+			{
+				olddims[oldnd]    = this->extents()[oi];
+				oldstrides[oldnd] = this->strides()[oi];
+				++oldnd;
+			}
+		}
+
+		//-- Iterate over axes -------------------------------------------------
+		oi = 0;
+		oj = 1;
+		ni = 0;
+		nj = 1;
+		while (ni < newnd && oi < oldnd)
+		{
+			size_t np = newdims[ni];
+			size_t op = olddims[oi];
+
+			//-- Obtain axes range to work on in current iteration -------------
+			// std::cout << "Obtain axes range to work on in current iteration..." << std::endl;
+			while ( np != op)
+			{
+				if (np < op)
+				{
+					np *= newdims[nj++];
+				}
+				else
+				{
+					op *= olddims[oj++];
+				}
+			}
+
+			//-- Check whether copy is necessary -------------------------------
+			// std::cout << "Check whether copy is necessary..." << std::endl;
+			for (ok = oi; ok < oj-1; ++ok)
+			{
+				if (is_f_order) // last fastest
+				{
+					if (oldstrides[ok+1] != oldstrides[ok] * olddims[ok])
+					{
+						// copy required
+						return 1;
+					}
+				}
+				else // first fastest
+				{
+					if (oldstrides[ok] != oldstrides[ok+1] * olddims[ok+1])
+					{
+						// copy needed
+						return 1;
+					}
+				}
+			}
+
+			//-- Calculate new strides for all axes currently worked with ------
+			if (is_f_order) // last fastest
+			{
+				newstrides[ni] = oldstrides[oi];
+				for (nk = ni + 1; nk < nj; ++nk)
+				{
+					newstrides[nk] = newstrides[nk-1] * newdims[nk-1];
+				}
+			}
+			else // first fastest
+			{
+				newstrides[nj-1] = oldstrides[oj-1];
+				for (nk = nj-1; nk > ni; --nk)
+				{
+					newstrides[nk-1] = newstrides[nk] * newdims[nk];
+				}
+			}
+
+			//-- Update axis range ---------------------------------------------
+			ni = nj++;
+			oi = oj++;
+
+		} // iterate over axes
+
+		//-- Set strides corresponding to trailing 1s of the new shape ---------
+		if (ni >= 1)
+		{
+			last_stride = newstrides[ni - 1];
+		}
+		else
+		{
+			last_stride = 1;
+		}
+
+		if (is_f_order) // last fastest
+		{
+			last_stride *= newdims[ni-1];
+		}
+
+		for (nk = ni; nk < newnd; nk++)
+		{
+			newstrides[nk] = last_stride;
+		}
+
+		return 0;
+	}
+
+
+	/** @brief Tranposes tensor
+	 *
+	 */
+	BOOST_UBLAS_INLINE
+	void transpose(size_t src, size_t des)
+	{
+		std::vector<size_t> newextents = this->extents_.base();
+		std::vector<size_t> newstrides = this->strides_.base();
+
+		// swap dims
+		newextents[src] = (this->extents_)[des];
+		newextents[des] = (this->extents_)[src];
+
+		newstrides[src] = (this->strides_).base()[des];
+		newstrides[des] = (this->strides_)[src];
+
+		// update tensor
+		this->extents_ = extents_type(newextents);
+		this->strides_ = strides_type(newstrides);
+	}
 
 
 
